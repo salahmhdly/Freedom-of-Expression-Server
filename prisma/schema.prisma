@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  username  String   @unique
+  email     String   @unique
+  password  String?
+  googleId  String?  @unique
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts     Post[]
+  comments  Comment[]
+  likes     Like[]
+  reposts   Repost[]
+
+  followers Follow[] @relation("Followers")
+  following Follow[] @relation("Following")
+}
+
+model Follow {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  followerId  String   @db.ObjectId
+  followingId String   @db.ObjectId
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Following", fields: [followerId], references: [id])
+  following User @relation("Followers", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+}
+
+model Post {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String?
+  mediaUrl  String?
+  authorId  String   @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author    User      @relation(fields: [authorId], references: [id])
+  comments  Comment[]
+  likes     Like[]
+  reposts   Repost[]
+  
+  hashtagIds String[]  @db.ObjectId
+  hashtags   Hashtag[] @relation("PostHashtags", fields: [hashtagIds], references: [id])
+}
+
+model Comment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  postId    String   @db.ObjectId
+  authorId  String   @db.ObjectId
+  parentId  String?  @db.ObjectId
+  createdAt DateTime @default(now())
+
+  post     Post      @relation(fields: [postId], references: [id])
+  author   User      @relation(fields: [authorId], references: [id])
+  parent   Comment?  @relation("Replies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies  Comment[] @relation("Replies")
+}
+
+model Like {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  postId    String   @db.ObjectId
+  userId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+}
+
+model Repost {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  postId    String   @db.ObjectId
+  userId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+}
+
+model Hashtag {
+  id      String   @id @default(auto()) @map("_id") @db.ObjectId
+  name    String   @unique
+  postIds String[] @db.ObjectId
+  posts   Post[]   @relation("PostHashtags", fields: [postIds], references: [id])
+}
