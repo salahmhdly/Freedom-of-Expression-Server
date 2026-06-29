@@ -315,6 +315,19 @@ app.get('/', (req: Request, res: Response) => {
 // ==========================================
 // 7. تشغيل الخادم
 // ==========================================
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+async function startServer() {
+  try {
+    // محاولة الاتصال بقاعدة البيانات للتحقق من عملها
+    await prisma.$connect();
+    console.log('✅ Successfully connected to MongoDB via Prisma!');
+    
+    app.listen(PORT, () => {
+      console.log(`🚀 Server is running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to connect to the database:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
