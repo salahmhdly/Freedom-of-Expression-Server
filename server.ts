@@ -26,11 +26,15 @@ app.use(express.json());
 // ==========================================
 // 2. إعدادات Cloudinary و Multer (لرفع الوسائط)
 // ==========================================
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+}
+// إذا لم يتم توفير المتغيرات الفردية، ستقوم مكتبة cloudinary تلقائياً
+// بقراءة المتغير CLOUDINARY_URL إذا كان موجوداً في البيئة (environment)
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -321,6 +325,18 @@ async function startServer() {
     await prisma.$connect();
     console.log('✅ Successfully connected to MongoDB via Prisma!');
     
+    // محاولة التحقق من اتصال Cloudinary
+    try {
+      if (process.env.CLOUDINARY_URL || (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET)) {
+        await cloudinary.api.ping();
+        console.log('✅ Successfully connected to Cloudinary!');
+      } else {
+        console.warn('⚠️ Cloudinary configuration variables are missing. Media uploads might not work.');
+      }
+    } catch (cloudinaryError: any) {
+      console.error('❌ Failed to connect to Cloudinary:', cloudinaryError.message || cloudinaryError);
+    }
+
     app.listen(PORT, () => {
       console.log(`🚀 Server is running on port ${PORT}`);
     });
