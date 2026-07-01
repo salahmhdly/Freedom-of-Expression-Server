@@ -106,8 +106,9 @@ app.post('/api/auth/google', async (req: Request, res: Response) => {
     
     const jwtToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
     res.json({ user, token: jwtToken });
-  } catch (error) {
-    res.status(500).json({ error: 'Google login failed' });
+  } catch (error: any) {
+    console.error('❌ Google login error details:', error.stack || error.message || error);
+    res.status(500).json({ error: 'Google login failed', details: error.message });
   }
 });
 
