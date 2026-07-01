@@ -312,6 +312,76 @@ app.post('/api/users/:userId/follow', authenticate, async (req: any, res: Respon
   }
 });
 
+// ==========================================
+// 8. ملف المستخدم (Profile)
+// ==========================================
+
+// جلب بيانات الملف الشخصي
+app.get('/api/profile', authenticate, async (req: any, res: Response) => {
+  try {
+    const userId = req.user.userId;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        _count: {
+          select: { following: true, followers: true, posts: true }
+        }
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      id: user.id,
+      username: user.username,
+      avatar: user.avatar || null,
+      bio: null, // السيرة الذاتية غير متوفرة في المخطط الحالي
+      followingCount: user._count.following,
+      followersCount: user._count.followers,
+      postCount: user._count.posts,
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// جلب منشورات المستخدم
+app.get('/api/profile/posts', authenticate, async (req: any, res: Response) => {
+  try {
+    const userId = req.user.userId;
+    const posts = await prisma.post.findMany({
+      where: { authorId: userId },
+      include: {
+        author: { select: { username: true, avatar: true } },
+        _count: { select: { likes: true, comments: true, reposts: true } },
+        likes: { where: { userId } },
+        reposts: { where: { userId } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const formattedPosts = posts.map(post => ({
+      id: post.id,
+      content: post.content,
+      authorId: post.authorId,
+      authorName: post.author.username,
+      authorAvatar: post.author.avatar || null,
+      createdAt: post.createdAt.toISOString(),
+      likesCount: post._count.likes,
+      repostsCount: post._count.reposts,
+      commentsCount: post._count.comments,
+      isLiked: post.likes.length > 0,
+      isReposted: post.reposts.length > 0
+    }));
+
+    res.json(formattedPosts);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch user posts' });
+  }
+});
+
 // مسار اختبار للتأكد من عمل الخادم
 app.get('/', (req: Request, res: Response) => {
   res.send('Social Media API is running!');
