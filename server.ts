@@ -337,13 +337,51 @@ app.get('/api/profile', authenticate, async (req: any, res: Response) => {
       id: user.id,
       username: user.username,
       avatar: user.avatar || null,
-      bio: null, // السيرة الذاتية غير متوفرة في المخطط الحالي
+      bio: user.bio || null,
       followingCount: user._count.following,
       followersCount: user._count.followers,
       postCount: user._count.posts,
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// تحديث بيانات الملف الشخصي
+app.put('/api/profile', authenticate, async (req: any, res: Response) => {
+  try {
+    const userId = req.user.userId;
+    const { username, bio, avatar } = req.body;
+
+    const updateData: any = {};
+    if (username !== undefined) updateData.username = username;
+    if (bio !== undefined) updateData.bio = bio;
+    if (avatar !== undefined) updateData.avatar = avatar;
+
+    // Check if username is already taken
+    if (username !== undefined) {
+      const existingUser = await prisma.user.findFirst({
+        where: { username, id: { not: userId } }
+      });
+      if (existingUser) {
+        return res.status(400).json({ error: 'Username is already taken' });
+      }
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData
+    });
+
+    res.json({
+      id: updatedUser.id,
+      username: updatedUser.username,
+      avatar: updatedUser.avatar || null,
+      bio: updatedUser.bio || null,
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
   }
 });
 
